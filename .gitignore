@@ -26,6 +26,11 @@ venv/
 ENV/
 env/
 
+# Claude Code memory files (local context, not tracked)
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

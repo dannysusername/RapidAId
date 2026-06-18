@@ -12,7 +12,7 @@ const RequestList = ({ requests, isLoading, error, onStatusChange }) => {
 
   const filteredRequests = requests?.filter(request => {
     // Category filter
-    const categoryMatch = categoryFilter === 'all' || request.category?.toLowerCase() === categoryFilter;
+    const categoryMatch = categoryFilter === 'all' || request.categories?.includes(categoryFilter);
     
     // Status filter
     const statusMatch = statusFilter === 'all' || request.status?.toLowerCase() === statusFilter;

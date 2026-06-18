@@ -17,7 +17,7 @@ class GeminiService {
       }
 
       this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+      this.model = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
       this.initialized = true;
       
       console.log('✅ Gemini service initialized successfully');
@@ -44,7 +44,7 @@ Request Details:
 - Location: ${location}
 - Request: ${request_text}
 
-Based on the request text, respond with ONLY the category name (medical, food, shelter, water, or other) in lowercase. No additional text or explanation.
+Based on the request text, respond with ALL matching categories as a comma-seperated list (medical, food, shelter, water, or other) in lowercase. No other text.
     `.trim();
 
     try {
@@ -53,74 +53,65 @@ Based on the request text, respond with ONLY the category name (medical, food, s
 
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
-      const category = response.text().trim().toLowerCase();
+      const raw = response.text().trim().toLowerCase();
 
       // Validate the category
       const validCategories = ['medical', 'food', 'shelter', 'water', 'other'];
-      const finalCategory = validCategories.includes(category) ? category : 'other';
+      const finalCategories = raw.split(',').map(c => c.trim()).filter(c => validCategories.includes(c));
 
-      if (category !== finalCategory) {
-        console.warn(`⚠️ Invalid category "${category}" returned, defaulting to "other"`);
+      if (finalCategories.length === 0) {            // safety net: AI returned nothing valid
+          finalCategories.push('other');
       }
 
       const processedRequest = {
-        id: Date.now().toString(),
         name: name || 'Anonymous',
         location: location,
         request_text: request_text,
-        category: finalCategory,
-        status: 'unclaimed',
-        created_at: new Date().toISOString()
+        categories: finalCategories,
+        status: 'unclaimed'
       };
 
       // Log the results to terminal for testing
       console.log('📊 Request Processing Results:');
       console.log('================================');
-      console.log(`ID: ${processedRequest.id}`);
       console.log(`Name: ${processedRequest.name}`);
       console.log(`Location: ${processedRequest.location}`);
       console.log(`Request: ${processedRequest.request_text}`);
-      console.log(`🏷️ AI Category: ${processedRequest.category}`);
+      console.log(`🏷️ AI Categories: ${processedRequest.categories.join(', ')}`);
       console.log(`Status: ${processedRequest.status}`);
-      console.log(`📅 Created: ${processedRequest.created_at}`);
       console.log('================================');
 
-      // Save to database
+      // Save to database; the saved row carries the DB-generated id + timestamps.
       try {
-        await databaseService.addRequest(processedRequest);
-        console.log('💾 Request saved to database successfully');
+        const saved = await databaseService.addRequest(processedRequest);
+        console.log(`💾 Request saved to database successfully (id: ${saved.id})`);
+        return saved;
       } catch (dbError) {
         console.error('❌ Failed to save request to database:', dbError);
-        // Don't throw here - we still want to return the processed request
+        // Still return what we processed so the UI can show a confirmation.
+        return processedRequest;
       }
-
-      return processedRequest;
       
     } catch (error) {
       console.error('❌ Error during Gemini categorization:', error);
       
       // Fallback to 'other' category if API fails
       const fallbackRequest = {
-        id: Date.now().toString(),
         name: name || 'Anonymous',
         location: location,
         request_text: request_text,
-        category: 'other',
-        status: 'unclaimed',
-        created_at: new Date().toISOString(),
-        error: 'AI categorization failed, using fallback category'
+        categories: ['other'],
+        status: 'unclaimed'
       };
 
       console.log('📊 Fallback Request Processing Results:');
       console.log('================================');
-      console.log(`ID: ${fallbackRequest.id}`);
       console.log(`Name: ${fallbackRequest.name}`);
       console.log(`Location: ${fallbackRequest.location}`);
       console.log(`Request: ${fallbackRequest.request_text}`);
-      console.log(`🏷️ Fallback Category: ${fallbackRequest.category}`);
+      console.log(`🏷️ Fallback Categories: ${fallbackRequest.categories.join(', ')}`);
       console.log(`Status: ${fallbackRequest.status}`);
-      console.log(`📅 Created: ${fallbackRequest.created_at}`);
-      console.log(`❌ Error: ${fallbackRequest.error}`);
+      console.log('❌ Error: AI categorization failed, using fallback category');
       console.log('================================');
 
       // Still save fallback request to database

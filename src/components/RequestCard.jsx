@@ -86,7 +86,9 @@ const RequestCard = ({ request, onStatusChange }) => {
     <div className="request-card" data-status={request.status}>
       <div className="request-card-header">
         <div className="request-card-badges">
-          <CategoryBadge category={request.category} />
+          {request.categories?.map((category) => (
+            <CategoryBadge key={category} category={category} />
+          ))}
           <StatusBadge status={request.status} />
         </div>
         <div className="request-card-timestamp">

@@ -15,7 +15,7 @@ const DashboardPage = () => {
       name: 'Maria Rodriguez',
       location: '1234 Main St, Miami, FL',
       request_text: 'Need food and water for family of 4. Lost everything in the hurricane.',
-      category: 'food',
+      categories: ['food', 'water'],
       status: 'unclaimed',
       created_at: '2024-01-15T10:30:00Z'
     },
@@ -24,7 +24,7 @@ const DashboardPage = () => {
       name: 'John Smith',
       location: '567 Oak Ave, Tampa, FL',
       request_text: 'Medical supplies needed for elderly mother with diabetes.',
-      category: 'medical',
+      categories: ['medical'],
       status: 'claimed',
       created_at: '2024-01-15T09:15:00Z'
     },
@@ -33,7 +33,7 @@ const DashboardPage = () => {
       name: 'Anonymous',
       location: '890 Pine St, Orlando, FL',
       request_text: 'Shelter needed for tonight. House is flooded.',
-      category: 'shelter',
+      categories: ['shelter'],
       status: 'unclaimed',
       created_at: '2024-01-15T08:45:00Z'
     },
@@ -42,7 +42,7 @@ const DashboardPage = () => {
       name: 'Sarah Johnson',
       location: '321 Elm St, Jacksonville, FL',
       request_text: 'Need clean drinking water. Our water supply is contaminated.',
-      category: 'water',
+      categories: ['water'],
       status: 'completed',
       created_at: '2024-01-15T07:20:00Z'
     },
@@ -51,7 +51,7 @@ const DashboardPage = () => {
       name: 'Carlos Martinez',
       location: '654 Maple Dr, Tallahassee, FL',
       request_text: 'Looking for blankets and warm clothes for children.',
-      category: 'other',
+      categories: ['other'],
       status: 'unclaimed',
       created_at: '2024-01-14T22:10:00Z'
     },
@@ -60,7 +60,7 @@ const DashboardPage = () => {
       name: 'Ana Garcia',
       location: '789 Coral Way, Miami, FL',
       request_text: 'Emergency medication needed for my son who has asthma. Pharmacy is closed and we ran out.',
-      category: 'medical',
+      categories: ['medical'],
       status: 'unclaimed',
       created_at: '2024-01-15T11:45:00Z'
     },
@@ -69,7 +69,7 @@ const DashboardPage = () => {
       name: 'David Lee',
       location: '1357 Birch Rd, Chicago, IL',
       request_text: 'Need diapers and baby formula for my 6-month-old. Local stores are out of stock.',
-      category: 'other',
+      categories: ['other'],
       status: 'unclaimed',
       created_at: '2024-01-15T12:30:00Z'
     }
@@ -169,8 +169,9 @@ const DashboardPage = () => {
   const getStatistics = () => {
     const totalRequests = requests.length;
     const categoryCounts = requests.reduce((acc, request) => {
-      const category = request.category || 'other';
-      acc[category] = (acc[category] || 0) + 1;
+      (request.categories || []).forEach(category => {
+        acc[category] = (acc[category] || 0) + 1;
+      });
       return acc;
     }, {});
 
@@ -212,24 +213,9 @@ const DashboardPage = () => {
               {isLoading ? 'Loading...' : 'Refresh Data'}
             </button>
             
-            {/* Development Controls */}
-            <button
-              className="btn btn-secondary"
-              onClick={async () => {
-                if (confirm('Clear all requests from database? This cannot be undone.')) {
-                  try {
-                    await databaseService.clearAllRequests();
-                    await fetchRequests();
-                  } catch (err) {
-                    console.error('Failed to clear database:', err);
-                  }
-                }
-              }}
-              style={{ marginLeft: '10px' }}
-            >
-              Clear Database
-            </button>
-            
+            {/* Development Controls.
+                Note: "Clear Database" was removed — deletes are blocked by RLS for the
+                public anon key. Clear data via privileged tooling during development. */}
             <button
               className="btn btn-secondary"
               onClick={async () => {

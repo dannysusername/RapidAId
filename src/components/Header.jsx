@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import './Header.css';
 
 const Header = () => {
@@ -14,7 +15,7 @@ const Header = () => {
       <div className="header-container">
         <div className="header-logo">
           <Link to="/" className="logo-link">
-            <img src="src/assets/logo.png" alt="RapidAid Logo" className="logo-image" />
+            <img src={logo} alt="RapidAid Logo" className="logo-image" />
             <h1>RapidAid</h1>
           </Link>
         </div>

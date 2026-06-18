@@ -7,16 +7,19 @@ A React-based frontend for the Rapid Aid Matcher disaster relief application. Th
 - **Submit Aid Requests**: Users can submit requests with their location and aid needs
 - **Responder Dashboard**: View categorized aid requests with filtering, sorting, and status management
 - **Request Status System**: Track requests through unclaimed → claimed → completed workflow
-- **AI-Powered Categorization**: Gemini 2.0 Flash AI categorizes requests (Food, Water, Shelter, Medical, Other)
+- **AI-Powered Categorization**: Google Gemini categorizes requests into one or more of Food, Water, Shelter, Medical, Other
+- **Shared Data**: Requests are stored in a hosted Supabase (Postgres) database and shared across all users
 - **Status-based Analytics**: Dashboard shows response progress and completion metrics
 - **Mobile-Responsive Design**: Works seamlessly on desktop and mobile devices
 - **Clean Component Architecture**: Reusable, maintainable React components
 
 ## Technology Stack
 
-- **Framework**: React 18 with functional components and hooks
-- **Routing**: React Router v6
-- **Styling**: Plain CSS with CSS Modules approach
+- **Framework**: React 19 with functional components and hooks
+- **Routing**: React Router v7
+- **Backend / Data**: Supabase (hosted Postgres) via `@supabase/supabase-js`, with Row-Level Security
+- **AI**: Google Gemini (`gemini-3.1-flash-lite`) via `@google/generative-ai`, called from the browser
+- **Styling**: Plain CSS, one file per component
 - **Build Tool**: Vite
 - **Package Manager**: npm
 
@@ -43,8 +46,9 @@ src/
 │   ├── DashboardPage.jsx        # Responder dashboard with status analytics
 │   └── DashboardPage.css
 ├── services/            # Business logic and API integration
-|   └── databaseService.js
-│   └── geminiService.js  # Gemini 2.0 Flash AI service for request categorization
+|   ├── databaseService.js   # Supabase CRUD for requests
+|   ├── supabaseClient.js    # Shared Supabase client
+│   └── geminiService.js     # Gemini AI service for request categorization
 ├── assets/              # Static assets
 │   ├── logo.png
 │   └── react.svg
@@ -78,8 +82,9 @@ src/
 
 ### Prerequisites
 
-- Node.js (version 16 or higher)
+- Node.js (version 18 or higher; 22.x recommended)
 - npm
+- A Supabase project (for the shared database)
 
 ### Installation
 
@@ -94,14 +99,17 @@ src/
    npm install
    ```
 
-3. Set up Gemini AI integration:
+3. Configure environment variables:
 
    - Get your Gemini API key from [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - Create a .env file under the main directory
-   - Add your API key to the `.env` file:
+   - Create a `.env` file in the project root with:
      ```
      VITE_GEMINI_API_KEY=your_actual_api_key_here
+     VITE_SUPABASE_URL=https://pjjsasukxjafqrgnmzpe.supabase.co
+     VITE_SUPABASE_ANON_KEY=your_supabase_publishable_key
      ```
+   - The Supabase URL and publishable (anon) key are safe to expose in the browser; Row-Level
+     Security protects the data. `.env` is gitignored.
 
 4. Start the development server:
    ```bash
@@ -119,40 +127,42 @@ src/
 
 ## AI Integration
 
-This application uses **Gemini 2.0 Flash** for real-time request categorization directly in the frontend.
+This application uses **Google Gemini** (`gemini-3.1-flash-lite`) for real-time request categorization directly in the frontend.
 
 ### How It Works
 
 1. **Form Submission**: Users submit aid requests through the form
-2. **AI Processing**: Gemini AI analyzes the request text in real-time
-3. **Categorization**: AI automatically categorizes requests into predefined categories
-4. **Console Output**: Detailed processing information is logged to browser console for testing
+2. **AI Processing**: Gemini analyzes the request text in real-time
+3. **Categorization**: AI assigns one or more categories to the request
+4. **Persistence**: The categorized request is saved to the shared Supabase database
+5. **Console Output**: Detailed processing information is logged to the browser console for debugging
 
 ### Request Data Structure
 
-When a request is processed, it creates the following data structure:
+A stored request looks like this (the database generates `id` and the timestamps):
 
 ```json
 {
-  "id": "1735123456789",
+  "id": "9b2c…-uuid",
   "name": "John Doe",
   "location": "123 Main St, City, State",
   "request_text": "Need food and water for family of 4",
-  "category": "food",
+  "categories": ["food", "water"],
   "status": "unclaimed",
-  "created_at": "2024-12-25T15:30:45.123Z"
+  "created_at": "2026-06-18T15:30:45.123Z",
+  "updated_at": "2026-06-18T15:30:45.123Z"
 }
 ```
 
 ### Field Descriptions
 
-- **`id`**: Unique timestamp-based identifier
+- **`id`**: Database-generated UUID
 - **`name`**: Requester's name (optional, defaults to "Anonymous")
 - **`location`**: Required location information
 - **`request_text`**: Required description of aid needed
-- **`category`**: AI-generated category (food, water, shelter, medical, other)
-- **`status`**: Always "unclaimed" for new requests
-- **`created_at`**: ISO timestamp of request creation
+- **`categories`**: Array of AI-generated categories (food, water, shelter, medical, other)
+- **`status`**: "unclaimed" for new requests (workflow: unclaimed → claimed → completed)
+- **`created_at`** / **`updated_at`**: ISO timestamps managed by the database
 
 ### AI Categories
 
@@ -209,8 +219,8 @@ New component for displaying request status with color coding:
 Main dashboard with analytics and request management:
 - **Response Status Statistics**: Shows unclaimed, claimed, completed counts and completion rate
 - Handles status updates via `handleStatusChange()` function
-- Sends PATCH requests to `/api/requests/{id}/status`
-- Updates local state optimistically (works even if API call fails)
+- Persists status changes through `databaseService.updateRequestStatus()` → Supabase
+- Includes dev controls ("Refresh Data", "Add Sample Data")
 
 ## Styling Approach
 
