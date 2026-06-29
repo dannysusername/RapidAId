@@ -1,133 +1,57 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+// Categorization service. The Gemini call now runs SERVER-SIDE in a Lambda
+// (amplify/functions/categorize-request) behind the `categorizeRequest` GraphQL
+// mutation — the API key never reaches the browser. This module just calls that
+// mutation, then saves the result via databaseService, preserving the old
+// contract (returns the saved DB row).
+import client from './amplifyClient.js';
 import databaseService from './databaseService.js';
 
 class GeminiService {
-  constructor() {
-    this.genAI = null;
-    this.model = null;
-    this.initialized = false;
-  }
-
+  // Kept for API compatibility — no client-side init needed anymore.
   async initialize() {
-    try {
-      const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      
-      if (!apiKey) {
-        throw new Error('Gemini API key not found. Please set VITE_GEMINI_API_KEY in your environment variables.');
-      }
-
-      this.genAI = new GoogleGenerativeAI(apiKey);
-      this.model = this.genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite" });
-      this.initialized = true;
-      
-      console.log('✅ Gemini service initialized successfully');
-      return true;
-    } catch (error) {
-      console.error('❌ Failed to initialize Gemini service:', error.message);
-      throw error;
-    }
+    return true;
   }
 
   async categorizeRequest(requestData) {
-    if (!this.initialized) {
-      await this.initialize();
-    }
-
     const { name, location, request_text } = requestData;
-    
-    // Create a structured prompt for categorization
-    const prompt = `
-Please categorize this aid request into one of these categories: medical, food, shelter, water, other
 
-Request Details:
-- Name: ${name || 'Anonymous'}
-- Location: ${location}
-- Request: ${request_text}
-
-Based on the request text, respond with ALL matching categories as a comma-seperated list (medical, food, shelter, water, or other) in lowercase. No other text.
-    `.trim();
-
+    let categories = ['other'];
     try {
-      console.log('🤖 Sending request to Gemini for categorization...');
-      console.log('📝 Request prompt:', prompt);
+      console.log('🤖 Asking the categorizeRequest Lambda (Gemini) to categorize...');
+      const { data, errors } = await client.mutations.categorizeRequest({
+        name: name || '',
+        location,
+        requestText: request_text,
+      });
 
-      const result = await this.model.generateContent(prompt);
-      const response = await result.response;
-      const raw = response.text().trim().toLowerCase();
-
-      // Validate the category
-      const validCategories = ['medical', 'food', 'shelter', 'water', 'other'];
-      const finalCategories = raw.split(',').map(c => c.trim()).filter(c => validCategories.includes(c));
-
-      if (finalCategories.length === 0) {            // safety net: AI returned nothing valid
-          finalCategories.push('other');
+      if (errors) {
+        throw new Error(errors.map((e) => e.message).join('; '));
       }
-
-      const processedRequest = {
-        name: name || 'Anonymous',
-        location: location,
-        request_text: request_text,
-        categories: finalCategories,
-        status: 'unclaimed'
-      };
-
-      // Log the results to terminal for testing
-      console.log('📊 Request Processing Results:');
-      console.log('================================');
-      console.log(`Name: ${processedRequest.name}`);
-      console.log(`Location: ${processedRequest.location}`);
-      console.log(`Request: ${processedRequest.request_text}`);
-      console.log(`🏷️ AI Categories: ${processedRequest.categories.join(', ')}`);
-      console.log(`Status: ${processedRequest.status}`);
-      console.log('================================');
-
-      // Save to database; the saved row carries the DB-generated id + timestamps.
-      try {
-        const saved = await databaseService.addRequest(processedRequest);
-        console.log(`💾 Request saved to database successfully (id: ${saved.id})`);
-        return saved;
-      } catch (dbError) {
-        console.error('❌ Failed to save request to database:', dbError);
-        // Still return what we processed so the UI can show a confirmation.
-        return processedRequest;
+      if (Array.isArray(data) && data.length > 0) {
+        categories = data.filter(Boolean);
       }
-      
+      console.log(`🏷️ AI Categories: ${categories.join(', ')}`);
     } catch (error) {
-      console.error('❌ Error during Gemini categorization:', error);
-      
-      // Fallback to 'other' category if API fails
-      const fallbackRequest = {
-        name: name || 'Anonymous',
-        location: location,
-        request_text: request_text,
-        categories: ['other'],
-        status: 'unclaimed'
-      };
-
-      console.log('📊 Fallback Request Processing Results:');
-      console.log('================================');
-      console.log(`Name: ${fallbackRequest.name}`);
-      console.log(`Location: ${fallbackRequest.location}`);
-      console.log(`Request: ${fallbackRequest.request_text}`);
-      console.log(`🏷️ Fallback Categories: ${fallbackRequest.categories.join(', ')}`);
-      console.log(`Status: ${fallbackRequest.status}`);
-      console.log('❌ Error: AI categorization failed, using fallback category');
-      console.log('================================');
-
-      // Still save fallback request to database
-      try {
-        await databaseService.addRequest(fallbackRequest);
-        console.log('💾 Fallback request saved to database');
-      } catch (dbError) {
-        console.error('❌ Failed to save fallback request to database:', dbError);
-      }
-
-      throw error;
+      console.error('❌ Categorization failed, using fallback category:', error);
+      // categories stays ['other']; we still save the request below.
     }
+
+    const processedRequest = {
+      name: name || 'Anonymous',
+      location,
+      request_text,
+      categories,
+      status: 'unclaimed',
+    };
+
+    // Save to database; the saved row carries the DB-generated id + timestamps.
+    const saved = await databaseService.addRequest(processedRequest);
+    console.log(`💾 Request saved to database successfully (id: ${saved.id})`);
+    return saved;
   }
 
   isInitialized() {
-    return this.initialized;
+    return true;
   }
 }
 

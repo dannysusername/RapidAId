@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import './Header.css';
 
-const Header = () => {
+const Header = ({ signOut, user }) => {
   const location = useLocation();
 
   const isActive = (path) => {
@@ -26,12 +26,17 @@ const Header = () => {
           >
             Submit Request
           </Link>
-          <Link 
-            to="/dashboard" 
+          <Link
+            to="/dashboard"
             className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`}
           >
             Dashboard
           </Link>
+          {signOut && (
+            <button type="button" className="nav-link sign-out-btn" onClick={signOut}>
+              Sign out{user?.signInDetails?.loginId ? ` (${user.signInDetails.loginId})` : ''}
+            </button>
+          )}
         </nav>
       </div>
     </header>

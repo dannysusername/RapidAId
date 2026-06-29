@@ -40,7 +40,7 @@ npm install
 Create a `.env` file in the project root:
 
 ```
-VITE_GEMINI_API_KEY=your_gemini_api_key_here
+I=your_gemini_api_key_here
 VITE_SUPABASE_URL=https://pjjsasukxjafqrgnmzpe.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_publishable_key
 ```

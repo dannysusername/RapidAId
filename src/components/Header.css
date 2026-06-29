@@ -67,6 +67,14 @@
   background-color: #bee3f8;
 }
 
+/* Sign-out is a <button> styled to match the nav links. */
+.sign-out-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
   .header-container {

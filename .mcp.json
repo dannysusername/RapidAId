@@ -3,6 +3,14 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=pjjsasukxjafqrgnmzpe&features=docs%2Caccount%2Cdatabase%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    },
+    "aws-mcp": {
+      "command": "uvx",
+      "args": [
+        "mcp-proxy-for-aws==1.6.2",
+        "https://aws-mcp.us-east-1.api.aws/mcp",
+        "--metadata", "AWS_REGION=us-west-2"
+      ]
     }
   }
 }
